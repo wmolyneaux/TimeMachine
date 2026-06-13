@@ -87,6 +87,11 @@ P = {
     "yerba_buena":    (37.7847, -122.4029),
     "south_park":     (37.7817, -122.3934),
     "soma":           (37.7810, -122.3980),
+    # Shared downtown congregation nodes — multiple animals route through these,
+    # so their tracks overlap and markers converge (esp. the Tenderloin).
+    "tenderloin":     (37.7840, -122.4135),
+    "civic_center":   (37.7790, -122.4170),
+    "un_plaza":       (37.7800, -122.4140),
 }
 
 
@@ -179,7 +184,7 @@ MAMMALS: list[Mammal] = [
         "#ff7a59", "Signal lost",
         "lands_end",
         ["sea_cliff", "baker_beach", "presidio_post", "mountain_lake", "crissy_field"],
-        [],
+        ["tenderloin"],   # rare far-node: occasionally drifts downtown to the congregation point
         "presidio_post", 8, 2,
     ),
     Mammal(
@@ -195,7 +200,7 @@ MAMMALS: list[Mammal] = [
         "#5ed1a5", "Track complete",
         "mount_sutro",
         ["twin_peaks", "tank_hill", "buena_vista", "stow_lake", "gg_conservatory"],
-        ["san_bruno_mtn", "sweeney_ridge", "glen_canyon"],
+        ["san_bruno_mtn", "sweeney_ridge", "glen_canyon", "tenderloin"],   # incl. rare downtown drift
         "gg_conservatory", 17, 3,
     ),
 ]
@@ -217,6 +222,27 @@ def densify(a, b, rng):
     return out
 
 
+# Downtown animals route THROUGH a shared congregation node on MOST nights, so
+# their tracks overlap and markers converge on the Tenderloin. Per-animal config:
+#   prob  — chance a given night includes a congregation waypoint
+#   nodes — weighted choices ("tenderloin" dominant, civic_center/un_plaza rarer)
+# This is a thin config overlay over the generalized night_path mechanism; the
+# Tenderloin is inserted mid-route (not at the den/current endpoints) so the path
+# visibly threads through it. ember/willow do NOT get a CONGREGATION entry — they
+# carry "tenderloin" in their `far` list and additionally get a small dedicated
+# rare-drift chance (RARE_DRIFT_P) so they OCCASIONALLY appear downtown, not nightly.
+CONGREGATION = {
+    "scout":  {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
+    "bandit": {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
+    "pepper": {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
+}
+
+# Rare-drift: any non-trio animal with "tenderloin" in its `far` list gets this
+# extra small chance per night to thread the Tenderloin, so it shows up there
+# occasionally even if the generic far-excursion roll keeps picking other nodes.
+RARE_DRIFT_P = 0.14
+
+
 def night_path(m: Mammal, rng, is_last: bool) -> list[str]:
     """Choose the sequence of node keys an animal visits in one night."""
     den = m.den
@@ -228,10 +254,77 @@ def night_path(m: Mammal, rng, is_last: bool) -> list[str]:
     if m.far and rng.random() < 0.18:
         chosen.append(rng.choice(m.far))
         rng.shuffle(chosen)
+
+    # Downtown trio: thread the night through a shared congregation waypoint on
+    # MOST nights so tracks overlap and converge (esp. the Tenderloin).
+    cfg = CONGREGATION.get(m.mid)
+    drift_node = None
+    if cfg and rng.random() < cfg["prob"]:
+        drift_node = rng.choice(cfg["nodes"])
+    elif (not cfg) and "tenderloin" in m.far and rng.random() < RARE_DRIFT_P:
+        # ember/willow: rare downtown drift to the shared congregation point.
+        drift_node = "tenderloin"
+    if drift_node is not None:
+        # insert into the MIDDLE of the route (a genuine mid-route waypoint with
+        # stops on either side where possible), not the den/current endpoints.
+        insert_at = len(chosen) // 2 if chosen else 0
+        chosen = chosen[:insert_at] + [drift_node] + chosen[insert_at:]
+
     path = [den] + chosen + [den]      # out from the den and back by dawn
     if is_last:
         path = [den] + chosen + [m.current]   # last night ends at the current fix
     return path
+
+
+# Daily-steps activity profile per animal. Pedometer-style counts, distinct from
+# the GPS track. high -> mostly 3000-10000; normal -> 500-6000; low -> mostly
+# 5-400 with at least two days dropping into 5-30 ("some animals move only a few
+# steps in a day"). All counts clamped to [0, 10000].
+ACTIVITY_PROFILE = {
+    "scout":  "high",
+    "willow": "high",
+    "bandit": "normal",
+    "pepper": "low",
+    "ember":  "low",
+}
+
+STEPS_DAYS = 14   # length of the stepsByDay history (oldest -> newest)
+
+
+def daily_steps(m: Mammal):
+    """Deterministic 14-day pedometer history for one animal.
+
+    Uses its own seeded stream — random.Random(f"{SEED}:{m.mid}:steps") — so it
+    is reproducible and independent of the GPS-track RNG. Returns
+    (steps_today, steps_by_day, activity).
+    """
+    activity = ACTIVITY_PROFILE[m.mid]
+    rng = random.Random(f"{SEED}:{m.mid}:steps")
+
+    def clamp(v):
+        return max(0, min(10000, int(round(v))))
+
+    by_day = []
+    if activity == "high":
+        # mostly 3000-10000, with an occasional lighter day
+        for _ in range(STEPS_DAYS):
+            if rng.random() < 0.85:
+                by_day.append(clamp(rng.randint(3000, 10000)))
+            else:
+                by_day.append(clamp(rng.randint(1500, 3000)))
+    elif activity == "normal":
+        # 500-6000 across the board
+        for _ in range(STEPS_DAYS):
+            by_day.append(clamp(rng.randint(500, 6000)))
+    else:  # "low": mostly 5-400, and AT LEAST two days land in 5-30
+        for _ in range(STEPS_DAYS):
+            by_day.append(clamp(rng.randint(5, 400)))
+        # guarantee >= 2 near-stationary days in the 5-30 band
+        idxs = rng.sample(range(STEPS_DAYS), 2)
+        for i in idxs:
+            by_day[i] = clamp(rng.randint(5, 30))
+
+    return by_day[-1], by_day, activity
 
 
 # Movement model per animal: (walk/trot km/h baseline, sprint km/h max, burst prob).
@@ -338,6 +431,8 @@ NAMES = {
     "san_bruno_mtn": "San Bruno Mountain", "sweeney_ridge": "Sweeney Ridge",
     "rincon_hill": "Rincon Hill", "yerba_buena": "Yerba Buena Gardens",
     "south_park": "South Park", "soma": "SoMa",
+    "tenderloin": "Tenderloin", "civic_center": "Civic Center",
+    "un_plaza": "UN Plaza",
 }
 
 
@@ -358,6 +453,7 @@ def main():
         dist = sum(haversine_km((pings[i - 1]["lat"], pings[i - 1]["lng"]),
                                 (pings[i]["lat"], pings[i]["lng"]))
                    for i in range(1, len(pings)))
+        steps_today, steps_by_day, activity = daily_steps(m)
         out["animals"].append({
             "id": m.mid, "name": m.name, "commonName": m.common_name,
             "scientificName": m.scientific_name, "family": m.family,
@@ -367,6 +463,7 @@ def main():
             "taggedDate": (TODAY - timedelta(days=m.end_offset_days + m.track_days)).isoformat(),
             "status": m.status, "color": m.color, "bio": m.bio, "note": m.note,
             "distanceKm": round(dist, 1), "homeRange": NAMES.get(m.den),
+            "stepsToday": steps_today, "stepsByDay": steps_by_day, "activity": activity,
             "pings": pings,
         })
 

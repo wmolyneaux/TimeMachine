@@ -171,6 +171,10 @@ window.TMSidebar = class {
       TM.el('div', { class: 'tm-profile__metric' }, [
         TM.el('span', { class: 'tm-profile__metric-value', text: TM.fmtInt(metrics.lastDistFeet) }),
         TM.el('span', { class: 'tm-profile__metric-label', text: 'ft last night' })
+      ]),
+      TM.el('div', { class: 'tm-profile__metric' }, [
+        TM.el('span', { class: 'tm-profile__metric-value', text: TM.fmtInt(animal.stepsToday || 0) }),
+        TM.el('span', { class: 'tm-profile__metric-label', text: 'Steps today' })
       ])
     ]);
 
@@ -192,6 +196,18 @@ window.TMSidebar = class {
     ]);
 
     const bioBlock = TM.el('p', { class: 'tm-profile__bio', text: animal.bio });
+
+    // 14-day step sparkline
+    const stepsByDay = animal.stepsByDay || [];
+    const maxDay = stepsByDay.reduce((m, v) => v > m ? v : m, 0);
+    const sparkBars = stepsByDay.map(v => {
+      const h = maxDay === 0 ? 4 : Math.max(4, Math.round(v / maxDay * 100));
+      return TM.el('span', { class: 'tm-spark-bar', style: `height:${h}%` });
+    });
+    const sparkBlock = TM.el('div', { class: 'tm-profile__spark' }, [
+      TM.el('div', { class: 'tm-spark' }, sparkBars),
+      TM.el('div', { class: 'tm-spark-caption', text: '14-day steps' })
+    ]);
 
     const notesPanel = TM.el('div', { class: 'tm-profile__notes' });
     notesPanel.style.display = 'none';
@@ -230,7 +246,12 @@ window.TMSidebar = class {
       }
     });
 
+    const photo = TM.el('img', { class: 'tm-profile__photo' });
+    photo.src = 'assets/portraits/' + animal.id + '.jpg';
+    photo.alt = '';
+
     this.profileEl.innerHTML = '';
+    this.profileEl.appendChild(photo);
     this.profileEl.appendChild(TM.el('div', { class: 'tm-profile__header' }, [
       TM.el('h2', { text: animal.name }),
       TM.el('div', { class: 'tm-profile__subtitle' }, [
@@ -240,6 +261,7 @@ window.TMSidebar = class {
       closeBtn
     ]));
     this.profileEl.appendChild(metricsBlock);
+    this.profileEl.appendChild(sparkBlock);
     this.profileEl.appendChild(vitalsBlock);
     this.profileEl.appendChild(bioBlock);
     this.profileEl.appendChild(claudeBtn);

@@ -59,6 +59,22 @@ window.TMMap = (function() {
     this._emphasizedId = null;
   }
 
+  // Track = ghost + bright trail + named-stop dots. Only the emphasized animal's
+  // track is on the map; markers are always on the map (governed separately).
+  TMMap.prototype._showTrack = function(layers) {
+    if (!layers) return;
+    if (layers.ghost && !this._map.hasLayer(layers.ghost)) this._map.addLayer(layers.ghost);
+    if (layers.trail && !this._map.hasLayer(layers.trail)) this._map.addLayer(layers.trail);
+    if (layers.stops && !this._map.hasLayer(layers.stops)) this._map.addLayer(layers.stops);
+  };
+
+  TMMap.prototype._hideTrack = function(layers) {
+    if (!layers) return;
+    if (layers.ghost && this._map.hasLayer(layers.ghost)) this._map.removeLayer(layers.ghost);
+    if (layers.trail && this._map.hasLayer(layers.trail)) this._map.removeLayer(layers.trail);
+    if (layers.stops && this._map.hasLayer(layers.stops)) this._map.removeLayer(layers.stops);
+  };
+
   TMMap.prototype.setAnimals = function(animals) {
     var self = this;
 
@@ -81,19 +97,23 @@ window.TMMap = (function() {
       var color = animal.color;
       var trailLatLngs = pts.map(function(p) { return [p.lat, p.lng]; });
 
+      // Ghost / trail / stops are created but NOT added to the map here — they
+      // are revealed only for the emphasized (selected) animal (see emphasize()).
+      // Default view stays clean: just the pinging photo markers (OCEARCH-style).
+
       // Ghost polyline: persistent faint full track (never collapsed), drawn under the bright trail
       var ghost = L.polyline(trailLatLngs, {
         color: color,
         weight: 2,
         opacity: 0.22
-      }).addTo(self._map);
+      });
 
       // Trail polyline (bright, traveled-portion line on top)
       var trail = L.polyline(trailLatLngs, {
         color: color,
         weight: 3,
         opacity: 0.8
-      }).addTo(self._map);
+      });
 
       // Named stop dots
       var stopMarkers = [];
@@ -109,18 +129,22 @@ window.TMMap = (function() {
           stopMarkers.push(marker);
         }
       });
-      var stopsGroup = L.layerGroup(stopMarkers).addTo(self._map);
+      var stopsGroup = L.layerGroup(stopMarkers);
 
-      // Head marker
+      // Head marker — photo divIcon. Status class is set at CREATION (the .tm-ping
+      // pulse is status-based: transmitting animals always ping, never per-frame).
       var lastPt = pts[pts.length - 1];
-      var head = L.circleMarker([lastPt.lat, lastPt.lng], {
-        radius: 8,
-        color: color,
-        fillColor: color,
-        fillOpacity: 1,
-        weight: 2,
-        className: 'tm-head' + (animal.status === 'Transmitting' ? ' tm-head--live' : '')
-      }).addTo(self._map);
+      var statusClass = TM.STATUS[animal.status];
+      var headIcon = L.divIcon({
+        className: 'tm-marker-wrap',
+        iconSize: [46, 46],
+        iconAnchor: [23, 23],
+        html: '<div class="tm-marker tm-marker--' + statusClass + '" style="--ring:' + animal.color + '">'
+            + '<span class="tm-ping"></span>'
+            + '<img class="tm-marker-img" src="assets/portraits/' + animal.id + '-marker.jpg" alt="">'
+            + '</div>'
+      });
+      var head = L.marker([lastPt.lat, lastPt.lng], { icon: headIcon }).addTo(self._map);
 
       // Click handler
       (function(animalId) {
@@ -156,33 +180,21 @@ window.TMMap = (function() {
       if (this._animalLayers.hasOwnProperty(id)) {
         var layers = this._animalLayers[id];
         var visible = idSet.has(id);
-        if (layers.ghost) {
-          if (visible) {
-            this._map.addLayer(layers.ghost);
-          } else {
-            this._map.removeLayer(layers.ghost);
-          }
-        }
-        if (layers.trail) {
-          if (visible) {
-            this._map.addLayer(layers.trail);
-          } else {
-            this._map.removeLayer(layers.trail);
-          }
-        }
-        if (layers.stops) {
-          if (visible) {
-            this._map.addLayer(layers.stops);
-          } else {
-            this._map.removeLayer(layers.stops);
-          }
-        }
+        // Markers follow the filter directly.
         if (layers.head) {
           if (visible) {
             this._map.addLayer(layers.head);
           } else {
             this._map.removeLayer(layers.head);
           }
+        }
+        // Tracks (ghost/trail/stops) are only ever shown for the emphasized
+        // animal. A filtered-out animal must additionally have its track hidden;
+        // a now-visible animal does NOT get its track shown here (emphasize does).
+        if (!visible) {
+          this._hideTrack(layers);
+        } else if (id !== this._emphasizedId) {
+          this._hideTrack(layers);
         }
       }
     }
@@ -196,7 +208,7 @@ window.TMMap = (function() {
       if (this._animalLayers.hasOwnProperty(id)) {
         var layers = this._animalLayers[id];
         var pts = layers.pts;
-        var animal = layers.animal;
+        var isEmph = (id === this._emphasizedId);
 
         // Check if visible
         if (this._visibleIds && !this._visibleIds.has(id)) continue;
@@ -214,15 +226,15 @@ window.TMMap = (function() {
         }
 
         if (before === null) {
-          // Not started yet - empty the bright trail and hide the head,
-          // but keep the faint ghost (full track) visible so the path stays findable.
-          if (layers.ghost && !this._map.hasLayer(layers.ghost)) this._map.addLayer(layers.ghost);
-          if (layers.trail) layers.trail.setLatLngs([]);
+          // Not started yet - hide the head. The bright trail is only on the map
+          // for the emphasized animal, so only empty it there; the faint ghost
+          // (full track, emphasis-governed) stays as-is so the path stays findable.
+          if (isEmph && layers.trail) layers.trail.setLatLngs([]);
           if (layers.head) this._map.removeLayer(layers.head);
           continue;
         }
 
-        // Ensure head is on map
+        // Ensure head is on map (markers are shown for every visible animal)
         if (!this._map.hasLayer(layers.head)) {
           this._map.addLayer(layers.head);
         }
@@ -238,39 +250,33 @@ window.TMMap = (function() {
           headLng = before.lng + (after.lng - before.lng) * t;
         }
 
+        // L.marker (photo divIcon) — setLatLng moves it; markers move during playback.
         layers.head.setLatLng([headLat, headLng]);
 
-        // Update trail up to current time
-        var trailLatLngs = [];
-        for (var j = 0; j < pts.length; j++) {
-          if (pts[j].ms <= ms) {
-            trailLatLngs.push([pts[j].lat, pts[j].lng]);
-          } else {
-            // Interpolate last segment
-            if (j > 0) {
-              var prev = pts[j - 1];
-              var t2 = (ms - prev.ms) / (pts[j].ms - prev.ms);
-              trailLatLngs.push([
-                prev.lat + (pts[j].lat - prev.lat) * t2,
-                prev.lng + (pts[j].lng - prev.lng) * t2
-              ]);
+        // Only rebuild the bright traveled trail for the emphasized animal;
+        // every other animal's trail is hidden (not on the map), so skip it.
+        if (isEmph && layers.trail) {
+          var trailLatLngs = [];
+          for (var j = 0; j < pts.length; j++) {
+            if (pts[j].ms <= ms) {
+              trailLatLngs.push([pts[j].lat, pts[j].lng]);
+            } else {
+              // Interpolate last segment
+              if (j > 0) {
+                var prev = pts[j - 1];
+                var t2 = (ms - prev.ms) / (pts[j].ms - prev.ms);
+                trailLatLngs.push([
+                  prev.lat + (pts[j].lat - prev.lat) * t2,
+                  prev.lng + (pts[j].lng - prev.lng) * t2
+                ]);
+              }
+              break;
             }
-            break;
           }
+          layers.trail.setLatLngs(trailLatLngs);
         }
-        layers.trail.setLatLngs(trailLatLngs);
-
-        // Update head class for live pulsing
-        var atLatest = before === pts[pts.length - 1];
-        var isLive = animal.status === 'Transmitting' && atLatest;
-        var headEl = layers.head.getElement();
-        if (headEl) {
-          if (isLive) {
-            headEl.classList.add('tm-head--live');
-          } else {
-            headEl.classList.remove('tm-head--live');
-          }
-        }
+        // NOTE: the ping is status-based (set at marker creation), so there is no
+        // per-frame tm-head--live class toggle anymore.
       }
     }
 
@@ -304,23 +310,27 @@ window.TMMap = (function() {
     for (var animalId in this._animalLayers) {
       if (this._animalLayers.hasOwnProperty(animalId)) {
         var layers = this._animalLayers[animalId];
-        var selectedOrAll = (id === null || animalId === id);
-        var opacity = selectedOrAll ? 1.0 : 0.25;
-        if (layers.ghost) {
-          layers.ghost.setStyle({ opacity: selectedOrAll ? 0.22 : 0.08 });
+        var isSelected = (id !== null && animalId === id);
+        // A track is only ever revealed for the selected animal — and only if it
+        // is not filtered out. Everything else has its track removed from the map.
+        var filteredOut = (this._visibleIds && !this._visibleIds.has(animalId));
+        if (isSelected && !filteredOut) {
+          this._showTrack(layers);
+        } else {
+          this._hideTrack(layers);
         }
-        if (layers.trail) {
-          layers.trail.setStyle({ opacity: selectedOrAll ? 1.0 : 0.2 });
-        }
+        // Head is an L.marker (photo divIcon) — use setOpacity, NOT setStyle
+        // (L.marker has no setStyle; calling it would throw). Selected/no-selection
+        // markers are full opacity; un-selected markers dim slightly.
         if (layers.head) {
-          layers.head.setStyle({ opacity: opacity });
-        }
-        if (layers.stops) {
-          layers.stops.eachLayer(function (mk) {
-            if (mk.setStyle) mk.setStyle({ opacity: selectedOrAll ? 0.8 : 0.15, fillOpacity: selectedOrAll ? 0.8 : 0.15 });
-          });
+          layers.head.setOpacity((id === null || isSelected) ? 1.0 : 0.45);
         }
       }
+    }
+    // Re-project the freshly-revealed trail to the current playback time so it
+    // shows the traveled portion (setTime rebuilds only the emphasized trail).
+    if (this._currentTime !== null) {
+      this.setTime(this._currentTime, this._focusId);
     }
   };
 
