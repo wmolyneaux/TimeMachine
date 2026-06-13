@@ -12,7 +12,7 @@ Centered on **SHACK15** at the Ferry Building. Inspired by the [OCEARCH shark tr
 
 ## What it is
 
-Five collared Bay Area mammals — a coyote, a raccoon, a striped skunk, a gray fox and a black-tailed deer — with three weeks of telemetry around San Francisco. Open it and you get a dark, full-screen map clustered on SHACK15; click any animal to see its track, its **vitals**, and the two numbers that matter most in the field: **distance walked** and **speed**. Then drag the **time machine** to replay the last three weeks, or hit **LIVE** to watch fresh fixes stream in.
+Five collared Bay Area mammals — a coyote, a raccoon, a striped skunk, a gray fox and a black-tailed deer — all collared at the Ferry Building (SHACK15) and tracked over the last six hours. Open it and you get a full-screen map clustered on SHACK15; click any animal to see its track, its **vitals**, and the two numbers that matter most in the field: **distance walked** and **speed**. Then drag the **time machine** to replay those six hours, or hit **LIVE** to watch fresh fixes stream in.
 
 ## Features
 

@@ -174,7 +174,7 @@ window.TMSidebar = class {
       ]),
       TM.el('div', { class: 'tm-profile__metric' }, [
         TM.el('span', { class: 'tm-profile__metric-value', text: TM.fmtInt(animal.stepsToday || 0) }),
-        TM.el('span', { class: 'tm-profile__metric-label', text: 'Steps today' })
+        TM.el('span', { class: 'tm-profile__metric-label', text: 'Steps · 6h' })
       ])
     ]);
 
@@ -206,7 +206,7 @@ window.TMSidebar = class {
     });
     const sparkBlock = TM.el('div', { class: 'tm-profile__spark' }, [
       TM.el('div', { class: 'tm-spark' }, sparkBars),
-      TM.el('div', { class: 'tm-spark-caption', text: '14-day steps' })
+      TM.el('div', { class: 'tm-spark-caption', text: 'Steps by hour' })
     ]);
 
     const notesPanel = TM.el('div', { class: 'tm-profile__notes' });

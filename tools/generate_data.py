@@ -6,11 +6,10 @@ Produces `scripts/data.js` (a `window.BIRD_DATA` global so the app runs from a
 plain file:// open with no server or fetch/CORS issues — the global keeps that
 name for back-compat with the engine, but it now carries mammals).
 
-Five collared land mammals roaming San Francisco and the greater Bay Area, each
-with a recent (~3 week) telemetry history. Most recent fixes cluster near
-SHACK15 (1 Ferry Building, 37.7955, -122.3937) so the map opens on the hackathon
-venue; historical tracks fan out across the city parks, the Presidio and down
-the Peninsula ridgelines.
+Five collared land mammals, all tagged at the Ferry Building (SHACK15, 1 Ferry
+Building, 37.7955, -122.3937) and tracked for the last 6 hours. Every track starts
+at the Ferry Building and fans out into a tight downtown range, so the map opens on
+the hackathon venue with the animals clustered around it.
 
 The data is ILLUSTRATIVE. Species, locations and home-range behaviour are real
 and well documented for the Bay Area; the individual animals, names, collar
@@ -33,6 +32,13 @@ TODAY = date(2026, 6, 13)
 SEED = 20260613
 
 SHACK15 = (37.7955, -122.3937)
+
+# All five animals are collared at the Ferry Building and tracked for the last 6 hours.
+# END_TS is the real "now" at generation time so the window is genuinely recent; the
+# track GEOMETRY stays deterministic via the per-animal SEED — only the absolute
+# timestamps shift with the clock.
+END_TS = datetime.utcnow().replace(second=0, microsecond=0)
+WINDOW = timedelta(hours=6)
 
 STEP_KM = 0.32          # one fix roughly every ~320 m along a night's path
 JITTER_DEG = 0.00045    # ~50 m organic GPS scatter on interpolated fixes
@@ -301,11 +307,12 @@ STEPS_DAYS = 14   # length of the stepsByDay history (oldest -> newest)
 
 
 def daily_steps(m: Mammal):
-    """Deterministic 14-day pedometer history for one animal.
+    """Deterministic step counts for the 6-hour tracking window.
 
-    Uses its own seeded stream — random.Random(f"{SEED}:{m.mid}:steps") — so it
-    is reproducible and independent of the GPS-track RNG. Returns
-    (steps_today, steps_by_day, activity).
+    Uses its own seeded stream — random.Random(f"{SEED}:{m.mid}:steps") — independent
+    of the GPS track. Returns (steps_total_6h, steps_by_hour[6], activity): high
+    animals are busy; low animals barely move (a couple of hours only a handful of
+    steps).
     """
     activity = ACTIVITY_PROFILE[m.mid]
     rng = random.Random(f"{SEED}:{m.mid}:steps")
@@ -313,27 +320,20 @@ def daily_steps(m: Mammal):
     def clamp(v):
         return max(0, min(10000, int(round(v))))
 
-    by_day = []
+    by_hour = []
     if activity == "high":
-        # mostly 3000-10000, with an occasional lighter day
-        for _ in range(STEPS_DAYS):
-            if rng.random() < 0.85:
-                by_day.append(clamp(rng.randint(3000, 10000)))
-            else:
-                by_day.append(clamp(rng.randint(1500, 3000)))
+        for _ in range(6):
+            by_hour.append(clamp(rng.randint(300, 1800)))
     elif activity == "normal":
-        # 500-6000 across the board
-        for _ in range(STEPS_DAYS):
-            by_day.append(clamp(rng.randint(500, 6000)))
-    else:  # "low": mostly 5-400, and AT LEAST two days land in 5-30
-        for _ in range(STEPS_DAYS):
-            by_day.append(clamp(rng.randint(5, 400)))
-        # guarantee >= 2 near-stationary days in the 5-30 band
-        idxs = rng.sample(range(STEPS_DAYS), 2)
-        for i in idxs:
-            by_day[i] = clamp(rng.randint(5, 30))
+        for _ in range(6):
+            by_hour.append(clamp(rng.randint(80, 900)))
+    else:  # "low": mostly tiny, with a couple of near-stationary hours (~5 steps)
+        for _ in range(6):
+            by_hour.append(clamp(rng.randint(0, 120)))
+        for i in rng.sample(range(6), 2):
+            by_hour[i] = clamp(rng.randint(0, 8))
 
-    return by_day[-1], by_day, activity
+    return clamp(sum(by_hour)), by_hour, activity
 
 
 # Movement model per animal: (walk/trot km/h baseline, sprint km/h max, burst prob).
@@ -379,49 +379,67 @@ def night_fixes(m: Mammal, path, start_dt, rng):
 
 
 def build_track(m: Mammal):
+    """A single 6-hour walk: every animal is collared at the Ferry Building and has
+    wandered its tight downtown range over the past six hours. Movement scales with
+    activity — low animals mostly rest near the start, high animals roam more — so
+    the tracks fan out from SHACK15 and stay short and contained."""
     rng = random.Random(f"{SEED}:{m.mid}")
-    base = date(2026, 5, 1)            # arbitrary; the series is translated to TODAY below
-    fixes = []                          # (datetime, lat, lng, place_or_None)
+    walk, run, burst_p = SPEED[m.mid]
+    act = ACTIVITY_PROFILE.get(m.mid, "normal")
+    if act == "high":
+        p_move, dwell = 0.8, (6, 18)
+    elif act == "low":
+        p_move, dwell = 0.3, (30, 80)
+    else:
+        p_move, dwell = 0.6, (12, 32)
 
-    for day in range(m.track_days):
-        is_last = day == m.track_days - 1
-        day_date = base + timedelta(days=day)
+    start = END_TS - WINDOW
+    nodes = list(m.nodes) or [m.den]
+    fixes = [(start, P["shack15"][0], P["shack15"][1], "SHACK15 · Ferry Building")]
+    clock = start
+    prev = P["shack15"]
+    guard = 0
+    while clock < END_TS and guard < 500:
+        guard += 1
+        arrived_key = None
+        if rng.random() < p_move:
+            arrived_key = rng.choice(nodes)
+            broke = False
+            for (lat, lng) in densify(prev, P[arrived_key], rng):
+                if clock >= END_TS:
+                    broke = True
+                    break
+                dist_m = haversine_km(prev, (lat, lng)) * 1000
+                spd = run * rng.uniform(0.55, 0.95) if rng.random() < burst_p \
+                    else walk * rng.uniform(0.5, 1.7)
+                clock += timedelta(seconds=dist_m / (max(spd, 0.4) * 1000 / 3600))
+                fixes.append((clock, round(lat, 5), round(lng, 5), None))
+                prev = (lat, lng)
+            if broke:
+                arrived_key = None
+        # dwell where we ended up (label it if we just arrived at a named node)
+        clock += timedelta(minutes=rng.uniform(*dwell))
+        fixes.append((clock, round(prev[0], 5), round(prev[1], 5),
+                      NAMES.get(arrived_key) if arrived_key else None))
 
-        if day > 0:                     # midday rest at the den
-            rest = datetime(day_date.year, day_date.month, day_date.day, 12, 30) + \
-                timedelta(minutes=rng.randint(-60, 60))
-            fixes.append((rest,
-                          round(P[m.den][0] + rng.gauss(0, JITTER_DEG * 1.5), 5),
-                          round(P[m.den][1] + rng.gauss(0, JITTER_DEG * 1.5), 5), None))
-
-        dusk = datetime(day_date.year, day_date.month, day_date.day, 19, 30) + \
-            timedelta(minutes=rng.randint(-30, 50))
-        nf, _ = night_fixes(m, night_path(m, rng, is_last), dusk, rng)
-        fixes.extend(nf)
-
-    fixes.sort(key=lambda f: f[0])
-
-    # translate the whole series so the latest fix lands this morning
-    # (or end_offset_days earlier for non-transmitting animals)
-    target_last = datetime(TODAY.year, TODAY.month, TODAY.day, 5, 0) - \
-        timedelta(days=m.end_offset_days, minutes=rng.randint(0, 40))
-    shift = target_last - fixes[-1][0]
-    fixes = [(t + shift, lat, lng, place) for (t, lat, lng, place) in fixes]
+    fixes = [f for f in fixes if f[0] <= END_TS]
+    if len(fixes) < 2:
+        fixes.append((END_TS, round(prev[0], 5), round(prev[1], 5), None))
 
     pings = []
     last_t = None
     for t, lat, lng, place in fixes:
         if last_t is not None and t <= last_t:
-            t = last_t + timedelta(minutes=2)
+            t = last_t + timedelta(seconds=30)
         last_t = t
         ping = {"lat": lat, "lng": lng, "t": t.strftime("%Y-%m-%dT%H:%MZ")}
         if place:
             ping["place"] = place
         pings.append(ping)
 
-    # force the final fix exactly onto the current node
-    pings[-1]["lat"], pings[-1]["lng"] = P[m.current]
-    pings[-1]["place"] = NAMES.get(m.current)
+    # anchor exactly: first fix = the Ferry Building start, last fix = END_TS ("now")
+    pings[0]["place"] = "SHACK15 · Ferry Building"
+    pings[-1]["t"] = END_TS.strftime("%Y-%m-%dT%H:%MZ")
     return pings
 
 
