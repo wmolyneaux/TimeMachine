@@ -136,12 +136,12 @@ MAMMALS: list[Mammal] = [
     ),
     Mammal(
         "bandit", "Bandit", "Raccoon", "Procyon lotor", "Procyonidae",
-        "Female", "Adult", 62, 8.2,
+        "Male", "Adult", 62, 8.2,
         "Embarcadero Urban Wildlife", "Telegraph Hill, San Francisco",
         "A waterfront raccoon whose nightly rounds loop between the lush Filbert Steps "
         "gardens on Telegraph Hill and the piers of the Embarcadero. Bandit is rarely "
         "more than a kilometre or two from the Ferry Building.",
-        "Bandit stuck to her usual beat — down the Filbert Steps, a sweep of the piers, "
+        "Bandit stuck to his usual beat — down the Filbert Steps, a sweep of the piers, "
         "and a long stop around the Ferry Building's planters. A textbook compact urban "
         "home range.",
         "#6ec6ff", "Transmitting",
@@ -168,7 +168,7 @@ MAMMALS: list[Mammal] = [
     ),
     Mammal(
         "ember", "Ember", "Gray Fox", "Urocyon cinereoargenteus", "Canidae",
-        "Female", "Adult", 64, 4.6,
+        "Male", "Adult", 64, 4.6,
         "Lands End Carnivore Study", "Lands End, San Francisco",
         "A gray fox ranging the coastal scrub from Lands End into the Presidio — the "
         "only American canid that readily climbs trees. Ember's collar fell silent in "
@@ -184,7 +184,7 @@ MAMMALS: list[Mammal] = [
     ),
     Mammal(
         "willow", "Willow", "Black-tailed Deer", "Odocoileus hemionus columbianus", "Cervidae",
-        "Female", "Adult", 150, 58.0,
+        "Male", "Adult", 150, 58.0,
         "Peninsula Deer Project", "Mount Sutro, San Francisco",
         "A Columbian black-tailed deer whose range covers the wooded hills of Mount "
         "Sutro, Twin Peaks and Golden Gate Park, with occasional forays down the "

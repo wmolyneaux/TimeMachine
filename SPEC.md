@@ -14,7 +14,7 @@ authored in parallel; they only integrate if everyone obeys the names, shapes an
 - Target modern evergreen browsers. Mobile must work at **375 / 390 / 428 px** widths.
 - **No secrets in code.** The only network calls are Leaflet tiles and (optionally) the Anthropic
   API in `claude.js`, which reads a key from `localStorage`/prompt — never hardcoded.
-- Dark theme. Accent gold `#f4a23b`, secondary teal `#38bdf8`. Status colors:
+- Light, happy theme (warm-cream background). Accent gold `#f4a23b` (use darker `--gold-ink` for text on white), secondary sky `#1fa9e0`. Status colors:
   `transmitting #46d39a`, `complete #8b97a7`, `lost #f0663f`. Per-animal track color is `animal.color`.
 
 ## 1. Data global (already produced — read only)
@@ -84,7 +84,7 @@ Guard against empty/length-1 ping arrays (return zeros, never NaN/Infinity).
 
 `new TMMap(elId, venue)` builds the Leaflet map.
 
-- Basemaps via `L.control.layers`: **"Dark" (CARTO dark_all, default)**, "Terrain" (OpenTopoMap),
+- Basemaps via `L.control.layers`: **"Streets" (CARTO Voyager, light, default)**, "Light" (CARTO Positron), "Terrain" (OpenTopoMap),
   "Satellite" (Esri WorldImagery). All keyless; include attributions.
 - Drops a distinct **SHACK15 marker** at `venue.lat/lng` (labeled pin / popup with the address).
 - Per animal: a **trail polyline** (`animal.color`), small **named-stop dots** (tooltip = `place`),
@@ -186,12 +186,12 @@ Guard against empty/length-1 ping arrays (return zeros, never NaN/Infinity).
 
 ## 9. `styles/main.css`
 
-Implements the dark theme for the structure in `index.html`: fixed header, left sidebar (340px;
+Implements the light, happy theme for the structure in `index.html`: fixed header, left sidebar (340px;
 collapses to an overlay drawer under 820px via `.tm-sidebar--open`), full-bleed `#map`, the
 bottom-center floating **timeline** (`.tm-timeline`) with the LIVE pill (`#tl-live`, pulsing red when
 `aria-pressed=true`), the bottom-left `.tm-legend`, the right **profile** slide-in (`.tm-profile`,
 380px; full-width sheet on mobile), the about `.tm-modal`. Style Leaflet popups/controls to match
-dark. Provide `.tm-head` / `.tm-head--live` (pulsing keyframe) for map head markers and `.dot.live/.done/.lost`.
+the light theme. Provide `.tm-head` / `.tm-head--live` (pulsing keyframe) for map head markers and `.dot.live/.done/.lost`.
 Respect `prefers-reduced-motion`. Never change animation rates elsewhere; keep it smooth at 60fps.
 
 ## 10. Acceptance / validation rubric (every module is graded; emit "VALIDATION x/7")

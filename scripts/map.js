@@ -9,12 +9,18 @@ window.TMMap = (function() {
       attributionControl: true
     });
 
-    // Basemaps
-    var dark = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+    // Basemaps (light, keyless)
+    var streets = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
       attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
       subdomains: 'abcd',
       maxZoom: 19
     }).addTo(this._map);
+
+    var light = L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19
+    });
 
     var terrain = L.tileLayer('https://tile.opentopomap.org/{z}/{x}/{y}.png', {
       attribution: 'Map data: &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, <a href="http://viewfinderpanoramas.org">SRTM</a> | Map style: &copy; <a href="https://opentopomap.org">OpenTopoMap</a> (<a href="https://creativecommons.org/licenses/by-sa/3.0/">CC-BY-SA</a>)',
@@ -27,7 +33,8 @@ window.TMMap = (function() {
     });
 
     L.control.layers({
-      'Dark': dark,
+      'Streets': streets,
+      'Light': light,
       'Terrain': terrain,
       'Satellite': satellite
     }, null, { position: 'bottomright' }).addTo(this._map);
@@ -59,6 +66,7 @@ window.TMMap = (function() {
     for (var id in this._animalLayers) {
       if (this._animalLayers.hasOwnProperty(id)) {
         var layers = this._animalLayers[id];
+        if (layers.ghost) this._map.removeLayer(layers.ghost);
         if (layers.trail) this._map.removeLayer(layers.trail);
         if (layers.stops) this._map.removeLayer(layers.stops);
         if (layers.head) this._map.removeLayer(layers.head);
@@ -73,7 +81,14 @@ window.TMMap = (function() {
       var color = animal.color;
       var trailLatLngs = pts.map(function(p) { return [p.lat, p.lng]; });
 
-      // Trail polyline
+      // Ghost polyline: persistent faint full track (never collapsed), drawn under the bright trail
+      var ghost = L.polyline(trailLatLngs, {
+        color: color,
+        weight: 2,
+        opacity: 0.22
+      }).addTo(self._map);
+
+      // Trail polyline (bright, traveled-portion line on top)
       var trail = L.polyline(trailLatLngs, {
         color: color,
         weight: 3,
@@ -114,6 +129,7 @@ window.TMMap = (function() {
       })(animal.id);
 
       self._animalLayers[animal.id] = {
+        ghost: ghost,
         trail: trail,
         stops: stopsGroup,
         head: head,
@@ -140,6 +156,13 @@ window.TMMap = (function() {
       if (this._animalLayers.hasOwnProperty(id)) {
         var layers = this._animalLayers[id];
         var visible = idSet.has(id);
+        if (layers.ghost) {
+          if (visible) {
+            this._map.addLayer(layers.ghost);
+          } else {
+            this._map.removeLayer(layers.ghost);
+          }
+        }
         if (layers.trail) {
           if (visible) {
             this._map.addLayer(layers.trail);
@@ -191,7 +214,9 @@ window.TMMap = (function() {
         }
 
         if (before === null) {
-          // Not started yet - hide head and trail
+          // Not started yet - empty the bright trail and hide the head,
+          // but keep the faint ghost (full track) visible so the path stays findable.
+          if (layers.ghost && !this._map.hasLayer(layers.ghost)) this._map.addLayer(layers.ghost);
           if (layers.trail) layers.trail.setLatLngs([]);
           if (layers.head) this._map.removeLayer(layers.head);
           continue;
@@ -249,11 +274,14 @@ window.TMMap = (function() {
       }
     }
 
-    // Pan to focus if set
+    // Pan to focus if set: only when the focused head leaves the view, and without animation (avoids per-frame pan jank)
     if (focusId && this._animalLayers[focusId]) {
       var focusHead = this._animalLayers[focusId].head;
       if (focusHead && this._map.hasLayer(focusHead)) {
-        this._map.panTo(focusHead.getLatLng(), { animate: true, duration: 0.3 });
+        var headLatLng = focusHead.getLatLng();
+        if (!this._map.getBounds().pad(-0.1).contains(headLatLng)) {
+          this._map.panTo(headLatLng, { animate: false });
+        }
       }
     }
   };
@@ -276,12 +304,21 @@ window.TMMap = (function() {
     for (var animalId in this._animalLayers) {
       if (this._animalLayers.hasOwnProperty(animalId)) {
         var layers = this._animalLayers[animalId];
-        var opacity = (id === null || animalId === id) ? 1.0 : 0.25;
+        var selectedOrAll = (id === null || animalId === id);
+        var opacity = selectedOrAll ? 1.0 : 0.25;
+        if (layers.ghost) {
+          layers.ghost.setStyle({ opacity: selectedOrAll ? 0.22 : 0.08 });
+        }
         if (layers.trail) {
-          layers.trail.setStyle({ opacity: opacity });
+          layers.trail.setStyle({ opacity: selectedOrAll ? 1.0 : 0.2 });
         }
         if (layers.head) {
           layers.head.setStyle({ opacity: opacity });
+        }
+        if (layers.stops) {
+          layers.stops.eachLayer(function (mk) {
+            if (mk.setStyle) mk.setStyle({ opacity: selectedOrAll ? 0.8 : 0.15, fillOpacity: selectedOrAll ? 0.8 : 0.15 });
+          });
         }
       }
     }
