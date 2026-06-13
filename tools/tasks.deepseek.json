@@ -1,0 +1,42 @@
+[
+  {
+    "id": "util",
+    "path": "scripts/util.js",
+    "brief": "Implement scripts/util.js exactly per SPEC §2 — the global `window.TM` with STATUS, parseT, el (tiny hyperscript), fmtDate/fmtDateTime/timeAgo, fmtInt, and especially `TM.metrics(pings)` with the EXACT semantics in §2 (haversine; feet, miles, km, avgMph for moving segments ≥ 0.3 mph, topMph after the <45 mph outlier filter, lastDistFeet over the final 14h, currentSpeedMph for the final segment, days, fixes). Guard empty / length-1 arrays (return zeros, never NaN/Infinity). This file is loaded first and everything depends on it."
+  },
+  {
+    "id": "map",
+    "path": "scripts/map.js",
+    "brief": "Implement scripts/map.js exactly per SPEC §3 — class TMMap(elId, venue) on Leaflet (global L). Keyless basemaps (CARTO dark default, OpenTopoMap terrain, Esri satellite) via L.control.layers with attributions; a distinct SHACK15 marker; per-animal trail polyline (animal.color) + named-stop dots (tooltip=place) + head marker that pulses (class tm-head--live) when Transmitting at latest. Methods: setAnimals, setVisible, setTime(ms,focusId) with linear interpolation between bracketing fixes, focus, emphasize, fitAll, onSelect. Use each animal's precomputed _pts ({lat,lng,ms,place})."
+  },
+  {
+    "id": "timeline",
+    "path": "scripts/timeline.js",
+    "brief": "Implement scripts/timeline.js exactly per SPEC §4 — class TMTimeline({minMs,maxMs,onChange}) driving #tl-range #tl-play #tl-current #tl-start #tl-end #tl-speed. Slider 0..1000 maps to [minMs,maxMs], default 1000. Play via requestAnimationFrame, full span ≈ 28s at 1× scaled by the active speed button (0.5/1/2/4); toggles play/pause SVGs; stops at end. onChange(ms) on drag and each frame. Public: value(), setValueMs(ms), isPlaying, pause(), setEnabled(bool)."
+  },
+  {
+    "id": "live",
+    "path": "scripts/live.js",
+    "brief": "Implement scripts/live.js exactly per SPEC §5 — class TMLive({animals,onTick,onFix}). start(): every ~2500ms append a new fix to each Transmitting animal (small believable random step ~tens of meters from its last position, biased to wander), timestamped Date.now(), pushed to animal._pts; call onFix(animal) and onTick(Date.now()). stop() clears the interval and keeps appended history; `active` boolean. Never touch non-transmitting animals."
+  },
+  {
+    "id": "claude",
+    "path": "scripts/claude.js",
+    "brief": "Implement scripts/claude.js exactly per SPEC §6 — global TMClaude with fieldNotes(animal, metrics) -> Promise<string>, hasKey(), clearKey(). If localStorage['tm_anthropic_key'] exists (else prompt() once and store), call the Anthropic Messages API from the browser with header 'anthropic-dangerous-direct-browser-access: true' and model 'claude-haiku-4-5-20251001', sending a compact prompt with species/status/recent places/metrics (feet, avg & top speed, last-night distance). On ANY error or missing key, resolve with animal.note (never throw). Keep the request minimal and correct per the current Anthropic API."
+  },
+  {
+    "id": "sidebar",
+    "path": "scripts/sidebar.js",
+    "brief": "Implement scripts/sidebar.js exactly per SPEC §7 — class TMSidebar({data,onSelect,onFilterChange}) owning #search #filters #list #list-count #btn-reset and rendering #profile. Build Species/Sex/Life-stage/Status filters + search; getVisibleIds(); list cards (color stripe, name, commonName, status dot via TM.STATUS, last-fix timeAgo, distance in miles). renderProfile(animal, metrics) MUST prominently show the metrics block: Feet walked (TM.fmtInt + miles), Avg speed (mph, 'on the move'), Top speed (mph), Last night (ft), and Current speed in live mode — plus vitals (sex, life stage, length, weight, tagged date/location, home range, tagger), bio, and an 'Ask Claude → Field Notes' button calling TMClaude.fieldNotes with a loading state. select(id|null), update(animal, metrics), reset()."
+  },
+  {
+    "id": "app",
+    "path": "scripts/app.js",
+    "brief": "Implement scripts/app.js exactly per SPEC §8 — orchestrator IIFE. Read window.BIRD_DATA; precompute animal._pts ({lat,lng,ms,place}) sorted; compute global minMs/maxMs. Instantiate TMMap -> setAnimals -> fitAll; set #stat-animals and #stat-active; set #about-repo href. Wire TMTimeline.onChange -> map.setTime(ms, selectedId); TMSidebar onFilterChange/onSelect (focus, emphasize, renderProfile with TM.metrics, #btn-clear); map.onSelect -> sidebar.select; TMLive on #tl-live toggle (disable timeline while live, map.setTime(now), sidebar.update); #btn-about/#about-close modal, #btn-menu mobile drawer, #btn-clear deselect, #btn-reset. Initial draw at maxMs."
+  },
+  {
+    "id": "css",
+    "path": "styles/main.css",
+    "brief": "Implement styles/main.css exactly per SPEC §9 (and the theme/colors in §0) — dark theme for the existing index.html structure: fixed .tm-header, left .tm-sidebar (340px; collapses to overlay drawer < 820px via .tm-sidebar--open), full-bleed #map, bottom-center floating .tm-timeline with the #tl-live pill (pulsing red when aria-pressed=true), bottom-left .tm-legend, right .tm-profile slide-in (380px; full-width sheet on mobile), .tm-modal. Style Leaflet popups/zoom/layers controls and attribution for dark. Provide .tm-head/.tm-head--live (pulse keyframe) and .dot.live/.done/.lost (colors: live #46d39a, done #8b97a7, lost #f0663f; accent gold #f4a23b, teal #38bdf8). Respect prefers-reduced-motion. Smooth at 60fps; do not throttle animations."
+  }
+]

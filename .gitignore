@@ -1,0 +1,21 @@
+# Secrets — never commit
+.env
+.env.local
+*.key
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Higgsfield demo assets — generated, NOT wired in yet (per request).
+# Remove these lines when you decide to use them.
+assets/animals/
+assets/hero.jpg
+assets/intro.mp4

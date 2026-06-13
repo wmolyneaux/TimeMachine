@@ -1,0 +1,151 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <title>TimeMachine — Live Bay Area Wildlife Tracker</title>
+  <meta name="description" content="An OCEARCH-style tracker for Bay Area land mammals around SHACK15. Follow collared coyotes, raccoons and deer across San Francisco — and travel through time to replay every track." />
+  <meta name="theme-color" content="#0e1116" />
+  <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+
+  <!-- Leaflet (open-source map engine; OpenStreetMap-based, no API key required) -->
+  <link rel="stylesheet" href="assets/vendor/leaflet/leaflet.css" />
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <div id="app" class="tm-app">
+
+    <!-- ───────── Header ───────── -->
+    <header class="tm-header">
+      <button id="btn-menu" class="tm-iconbtn tm-menu-toggle" aria-label="Toggle animal list">
+        <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+      </button>
+
+      <a class="tm-brand" href="./" aria-label="TimeMachine home">
+        <svg class="tm-logo" viewBox="0 0 48 48" width="34" height="34" aria-hidden="true">
+          <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0" stop-color="#f4c64a"/><stop offset="1" stop-color="#f08b3a"/>
+          </linearGradient></defs>
+          <path fill="url(#g)" d="M11 5h26a2 2 0 0 1 0 4h-1.2c-.5 6-3.7 9.4-7.6 12 3.9 2.6 7.1 6 7.6 12H37a2 2 0 0 1 0 4H11a2 2 0 0 1 0-4h1.2c.5-6 3.7-9.4 7.6-12-3.9-2.6-7.1-6-7.6-12H11a2 2 0 0 1 0-4z"/>
+          <path fill="#0e1116" d="M24 24c-2.6 1.7-4.9 3.9-5.4 7h10.8c-.5-3.1-2.8-5.3-5.4-7z"/>
+          <path fill="#0e1116" d="M30 12.5c-1.6 2.2-3.7 3-6 4.2-2.3-1.2-4.4-2-6-4.2z"/>
+        </svg>
+        <span class="tm-brandtext">TIME<b>MACHINE</b></span>
+      </a>
+
+      <div class="tm-header-spacer"></div>
+
+      <div class="tm-header-stats">
+        <div class="tm-stat"><b id="stat-animals">0</b><span>tracked</span></div>
+        <div class="tm-stat"><b id="stat-active">0</b><span>transmitting</span></div>
+      </div>
+      <button id="btn-about" class="tm-btn-ghost">About</button>
+    </header>
+
+    <!-- ───────── Body: sidebar + map ───────── -->
+    <div class="tm-body">
+      <aside class="tm-sidebar" id="sidebar" aria-label="Tracked animals">
+        <div class="tm-search">
+          <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M10 2a8 8 0 1 0 4.9 14.32l5.39 5.39 1.42-1.42-5.39-5.39A8 8 0 0 0 10 2zm0 2a6 6 0 1 1 0 12 6 6 0 0 1 0-12z"/></svg>
+          <input id="search" type="search" placeholder="Search animals or species…" autocomplete="off" />
+        </div>
+
+        <div class="tm-filters" id="filters"><!-- populated by sidebar.js --></div>
+
+        <div class="tm-list-head">
+          <span id="list-count">0 animals</span>
+          <button id="btn-reset" class="tm-link" hidden>Reset filters</button>
+        </div>
+        <div class="tm-list" id="list" role="list"><!-- populated by sidebar.js --></div>
+
+        <footer class="tm-sidebar-foot">
+          Illustrative demo data — real species &amp; Bay Area ranges, synthetic individuals.
+        </footer>
+      </aside>
+
+      <main class="tm-map-wrap">
+        <div id="map"></div>
+
+        <button class="tm-clear" id="btn-clear" hidden>
+          <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M15.4 7.4 14 6l-6 6 6 6 1.4-1.4L10.8 12z"/></svg>
+          Show all tracks
+        </button>
+
+        <div class="tm-legend" id="legend">
+          <div class="tm-legend-row"><span class="dot live"></span> Transmitting</div>
+          <div class="tm-legend-row"><span class="dot done"></span> Track complete</div>
+          <div class="tm-legend-row"><span class="dot lost"></span> Signal lost</div>
+        </div>
+
+        <!-- ───────── Time machine control ───────── -->
+        <div class="tm-timeline" id="timeline">
+          <button id="tl-play" class="tm-iconbtn tl-play" aria-label="Play tracks">
+            <svg class="ic-play" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+            <svg class="ic-pause" viewBox="0 0 24 24" width="22" height="22" aria-hidden="true" hidden><path fill="currentColor" d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>
+          </button>
+          <div class="tl-main">
+            <div class="tl-readout">
+              <span class="tl-label">Position as of</span>
+              <span id="tl-current" class="tl-current">—</span>
+            </div>
+            <input id="tl-range" class="tl-range" type="range" min="0" max="1000" value="1000" step="1" aria-label="Track timeline" />
+            <div class="tl-bounds"><span id="tl-start">—</span><span id="tl-end">now</span></div>
+          </div>
+          <div class="tl-speed" id="tl-speed" role="group" aria-label="Playback speed">
+            <button data-speed="0.5">0.5×</button>
+            <button data-speed="1" class="active">1×</button>
+            <button data-speed="2">2×</button>
+            <button data-speed="4">4×</button>
+          </div>
+          <button id="tl-live" class="tm-live-toggle" aria-pressed="false" title="Stream live fixes in real time">
+            <span class="tm-live-dot"></span> LIVE
+          </button>
+        </div>
+      </main>
+    </div>
+
+    <!-- ───────── Profile slide-in (rendered by sidebar.js) ───────── -->
+    <section class="tm-profile" id="profile" aria-hidden="true" aria-label="Animal profile"></section>
+
+    <!-- ───────── About modal ───────── -->
+    <div class="tm-modal" id="about" hidden>
+      <div class="tm-modal-card" role="dialog" aria-modal="true" aria-labelledby="about-title">
+        <button class="tm-modal-close" id="about-close" aria-label="Close">&times;</button>
+        <h2 id="about-title">⏳ TimeMachine</h2>
+        <p>A live-style tracker for the wild mammals moving through San Francisco, centered on
+           <strong>SHACK15</strong> at the Ferry Building. Inspired by the
+           <a href="https://www.ocearch.org/tracker/" target="_blank" rel="noopener">OCEARCH</a>
+           shark tracker — but for the coyotes, raccoons, foxes, skunks and deer that share the city.</p>
+        <p>Five collared animals, three weeks of fixes. Drag the timeline or hit <strong>play</strong>
+           to travel through time and replay every track, or go <strong>LIVE</strong> to watch fresh
+           fixes arrive in real time.</p>
+        <h3>How to use it</h3>
+        <ul>
+          <li>Click an animal to open its profile — distance walked, average &amp; top speed — and zoom to its range.</li>
+          <li>Filter by species, sex, life stage or transmitter status.</li>
+          <li>Scrub the <strong>time machine</strong> to replay the last three weeks.</li>
+          <li>Toggle <strong>LIVE</strong> for a real-time fix stream; switch basemaps (dark / terrain / satellite).</li>
+          <li>Hit <strong>Ask Claude</strong> on any profile for plain-English field notes.</li>
+        </ul>
+        <p class="tm-fineprint">Species, locations and home-range behaviour are real and documented for
+           the Bay Area. Individual animals, names, collar programs, dates and GPS fixes are
+           <strong>synthetic</strong> — this is a demonstration, not a biological data source.
+           Maps © OpenStreetMap contributors, CARTO, Esri &amp; OpenTopoMap.</p>
+        <p class="tm-fineprint">Open source · <a id="about-repo" href="#" target="_blank" rel="noopener">View on GitHub</a></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Leaflet engine (vendored locally so the app shell never depends on a CDN) -->
+  <script src="assets/vendor/leaflet/leaflet.js"></script>
+  <!-- Data + app (plain globals so it runs from file:// with no server) -->
+  <script src="scripts/data.js"></script>
+  <script src="scripts/util.js"></script>
+  <script src="scripts/map.js"></script>
+  <script src="scripts/timeline.js"></script>
+  <script src="scripts/live.js"></script>
+  <script src="scripts/claude.js"></script>
+  <script src="scripts/sidebar.js"></script>
+  <script src="scripts/app.js"></script>
+</body>
+</html>
