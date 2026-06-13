@@ -92,6 +92,13 @@ P = {
     "tenderloin":     (37.7840, -122.4135),
     "civic_center":   (37.7790, -122.4170),
     "un_plaza":       (37.7800, -122.4140),
+    # Compact NE-downtown nodes (all within ~1.5 km of SHACK15) — keeps every
+    # animal's range small and overlapping instead of sprawling across the city.
+    "nob_hill":       (37.7930, -122.4140),
+    "chinatown":      (37.7941, -122.4078),
+    "union_square":   (37.7880, -122.4075),
+    "jackson_sq":     (37.7969, -122.4029),
+    "portsmouth_sq":  (37.7946, -122.4060),
 }
 
 
@@ -124,20 +131,18 @@ MAMMALS: list[Mammal] = [
     Mammal(
         "scout", "Scout", "Coyote", "Canis latrans", "Canidae",
         "Male", "Adult", 95, 13.5,
-        "Presidio Wildlife Watch", "Presidio of San Francisco",
-        "Collared in the Presidio, Scout is one of San Francisco's resident urban "
-        "coyotes. Like the city's small but established population he moves mostly "
-        "after dark, threading park corridors and the northern waterfront — and on "
-        "bold nights trotting all the way down to the Embarcadero.",
-        "Scout covered an unusually long loop last night — out of the Presidio, along "
-        "the marina and the piers, and right past the Ferry Building before dawn. "
-        "Healthy movement for a city coyote holding a large territory.",
+        "Downtown Wildlife Watch", "Nob Hill, San Francisco",
+        "Scout is one of San Francisco's bold urban coyotes, denning in the quiet "
+        "blocks of Nob Hill. He holds a compact downtown territory — the alleys of "
+        "Chinatown and Union Square, a nightly pass through the Tenderloin, and a dawn "
+        "slip down to the Embarcadero.",
+        "Scout kept a tight downtown circuit last night — Nob Hill to Chinatown, "
+        "through the Tenderloin, and back. A small, well-defended urban territory.",
         "#f4a23b", "Transmitting",
-        "mountain_lake",
-        ["presidio_post", "crissy_field", "marina_green", "fort_mason",
-         "aquatic_park", "russian_hill", "north_beach", "gg_conservatory"],
-        ["lake_merced", "twin_peaks", "san_bruno_mtn"],
-        "embarcadero", 20, 0,
+        "nob_hill",
+        ["chinatown", "union_square", "tenderloin", "north_beach", "russian_hill"],
+        [],
+        "embarcadero", 14, 0,
     ),
     Mammal(
         "bandit", "Bandit", "Raccoon", "Procyon lotor", "Procyonidae",
@@ -145,63 +150,62 @@ MAMMALS: list[Mammal] = [
         "Embarcadero Urban Wildlife", "Telegraph Hill, San Francisco",
         "A waterfront raccoon whose nightly rounds loop between the lush Filbert Steps "
         "gardens on Telegraph Hill and the piers of the Embarcadero. Bandit is rarely "
-        "more than a kilometre or two from the Ferry Building.",
+        "more than a few blocks from the Ferry Building.",
         "Bandit stuck to his usual beat — down the Filbert Steps, a sweep of the piers, "
         "and a long stop around the Ferry Building's planters. A textbook compact urban "
         "home range.",
         "#6ec6ff", "Transmitting",
         "filbert_steps",
-        ["coit_tower", "levis_plaza", "pier7", "embarcadero", "aquatic_park",
-         "north_beach"],
+        ["coit_tower", "levis_plaza", "pier7", "embarcadero", "jackson_sq"],
         [],
-        "shack15", 20, 0,
+        "shack15", 14, 0,
     ),
     Mammal(
         "pepper", "Pepper", "Striped Skunk", "Mephitis mephitis", "Mephitidae",
         "Male", "Subadult", 36, 2.8,
         "SoMa Wildlife Survey", "Yerba Buena Gardens, San Francisco",
-        "A striped skunk denning in the green spaces of SoMa. Pepper forages a tight "
-        "range through Yerba Buena Gardens, Rincon Hill and the small parks beside the "
-        "Ferry Building, ambling at a deliberate skunk's pace.",
-        "Pepper kept it slow and local — Yerba Buena Gardens to Rincon Hill, then the "
-        "lawns by the Ferry Building. Short legs, small range, very routine.",
+        "A striped skunk denning in the green spaces of SoMa. Pepper keeps a very tight "
+        "range — Yerba Buena Gardens, the SoMa side streets and the edge of the "
+        "Tenderloin — ambling at a deliberate skunk's pace and rarely covering ground.",
+        "Pepper kept it slow and local — Yerba Buena Gardens to the Tenderloin edge and "
+        "back. Short legs, tiny range, very routine.",
         "#b388ff", "Transmitting",
         "yerba_buena",
-        ["rincon_hill", "soma", "south_park", "sue_bierman", "embarcadero"],
+        ["soma", "south_park", "tenderloin", "civic_center"],
         [],
-        "sue_bierman", 20, 0,
+        "soma", 12, 0,
     ),
     Mammal(
         "ember", "Ember", "Gray Fox", "Urocyon cinereoargenteus", "Canidae",
         "Male", "Adult", 64, 4.6,
-        "Lands End Carnivore Study", "Lands End, San Francisco",
-        "A gray fox ranging the coastal scrub from Lands End into the Presidio — the "
-        "only American canid that readily climbs trees. Ember's collar fell silent in "
-        "the Presidio after eight nights.",
-        "Ember's last good fixes trace the coastal bluffs from Lands End toward the "
-        "Presidio. The collar has been quiet since — possibly a failed unit, possibly "
-        "dense canopy blocking the uplink.",
+        "Downtown Carnivore Study", "Chinatown, San Francisco",
+        "A gray fox that surprised researchers by turning up in the dense blocks around "
+        "Chinatown and the Tenderloin — the only American canid that readily climbs. "
+        "Ember's collar fell silent after eight nights.",
+        "Ember's last good fixes loop through Chinatown and the Tenderloin. The collar "
+        "has been quiet since — possibly a failed unit, possibly the urban canyon "
+        "blocking the uplink.",
         "#ff7a59", "Signal lost",
-        "lands_end",
-        ["sea_cliff", "baker_beach", "presidio_post", "mountain_lake", "crissy_field"],
-        ["tenderloin"],   # rare far-node: occasionally drifts downtown to the congregation point
-        "presidio_post", 8, 2,
+        "portsmouth_sq",
+        ["chinatown", "nob_hill", "tenderloin", "union_square"],
+        [],
+        "tenderloin", 8, 2,
     ),
     Mammal(
         "willow", "Willow", "Black-tailed Deer", "Odocoileus hemionus columbianus", "Cervidae",
         "Male", "Adult", 150, 58.0,
-        "Peninsula Deer Project", "Mount Sutro, San Francisco",
-        "A Columbian black-tailed deer whose range covers the wooded hills of Mount "
-        "Sutro, Twin Peaks and Golden Gate Park, with occasional forays down the "
-        "Peninsula ridgelines. Willow's study collar completed its program this week.",
-        "Willow's full record shows a classic west-side deer range — Mount Sutro and "
-        "Twin Peaks, the green sweep of Golden Gate Park, and two long excursions south "
-        "along the Peninsula ridges before the study collar was retired.",
+        "Urban Deer Project", "Russian Hill, San Francisco",
+        "A black-tailed deer that wandered into the city and settled on the steep green "
+        "slopes of Russian Hill and Telegraph Hill — a small, cautious range of gardens "
+        "and quiet stairways. Willow's study collar completed its program this week.",
+        "Willow's record shows a tight hillside range — Russian Hill to the Filbert "
+        "Steps greenery and back. Very little ground covered; a careful, contained "
+        "urban deer.",
         "#5ed1a5", "Track complete",
-        "mount_sutro",
-        ["twin_peaks", "tank_hill", "buena_vista", "stow_lake", "gg_conservatory"],
-        ["san_bruno_mtn", "sweeney_ridge", "glen_canyon", "tenderloin"],   # incl. rare downtown drift
-        "gg_conservatory", 17, 3,
+        "russian_hill",
+        ["north_beach", "filbert_steps", "coit_tower"],
+        [],
+        "north_beach", 12, 3,
     ),
 ]
 
@@ -232,9 +236,7 @@ def densify(a, b, rng):
 # carry "tenderloin" in their `far` list and additionally get a small dedicated
 # rare-drift chance (RARE_DRIFT_P) so they OCCASIONALLY appear downtown, not nightly.
 CONGREGATION = {
-    "scout":  {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
-    "bandit": {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
-    "pepper": {"prob": 0.85, "nodes": ["tenderloin"] * 8 + ["civic_center", "un_plaza"]},
+    "scout":  {"prob": 0.6, "nodes": ["tenderloin"] * 6 + ["civic_center", "union_square"]},
 }
 
 # Rare-drift: any non-trio animal with "tenderloin" in its `far` list gets this
@@ -246,7 +248,14 @@ RARE_DRIFT_P = 0.14
 def night_path(m: Mammal, rng, is_last: bool) -> list[str]:
     """Choose the sequence of node keys an animal visits in one night."""
     den = m.den
-    k = rng.randint(2, 4)
+    # Roaming scales with activity so total travel stays small and consistent with
+    # the step counts: low-activity animals barely move (0-1 nearby node), others
+    # make a short 1-2 node loop.
+    act = ACTIVITY_PROFILE.get(m.mid, "normal")
+    # Frequent REST nights (k=0 = barely leaves the den) keep total travel low and
+    # make movement vary day-to-day like the step counts do.
+    k = rng.choice([0, 0, 1]) if act == "low" else (
+        rng.choice([0, 1, 1, 2]) if act == "high" else rng.choice([0, 1, 1]))
     pool = list(m.nodes)
     rng.shuffle(pool)
     chosen = pool[:k]
@@ -433,6 +442,8 @@ NAMES = {
     "south_park": "South Park", "soma": "SoMa",
     "tenderloin": "Tenderloin", "civic_center": "Civic Center",
     "un_plaza": "UN Plaza",
+    "nob_hill": "Nob Hill", "chinatown": "Chinatown", "union_square": "Union Square",
+    "jackson_sq": "Jackson Square", "portsmouth_sq": "Portsmouth Square",
 }
 
 
